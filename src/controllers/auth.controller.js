@@ -12,6 +12,7 @@ export const register = async (req, res) => {
   try {
     const { firstName, lastName, email, password } = req.body;
 
+    // 1. Validaciones previas
     if (!firstName || !lastName || !email || !password) {
       return res.status(400).json({ error: "Todos los campos son obligatorios" });
     }
@@ -24,20 +25,36 @@ export const register = async (req, res) => {
       return res.status(400).json({ error: "La contraseña es muy débil" });
     }
 
+    // 2. Crear usuario en la base de datos (Supabase a través de Prisma)
     const user = await registerUser(req.body);
     
-    await sendVerificationEmail(user.email, user.firstName, user.lastName, user.verificationToken);
+    // 3. INTENTO DE ENVÍO DE CORREO AISLADO (Evita el Error 502 si falla Nodemailer)
+    try {
+      await sendVerificationEmail(user.email, user.firstName, user.lastName, user.verificationToken);
+      console.log(`Correo de verificación enviado con éxito a: ${user.email}`);
+    } catch (emailError) {
+      // Si falla el correo, lo registramos en logs pero NO rompemos la respuesta del servidor
+      console.error("ERROR EN NODEMAILER AL ENVIAR VERIFICACIÓN:", emailError.message);
+      
+      return res.status(201).json({ 
+        message: "Usuario creado exitosamente en la plataforma, pero hubo un problema técnico temporal al enviar el correo de verificación. Por favor, solicita un reenvío o contacta al administrador.",
+        emailError: true
+      });
+    }
 
-    res.status(201).json({ 
+    // 4. Respuesta exitosa estándar si todo salió perfecto
+    return res.status(201).json({ 
       message: "Usuario creado exitosamente. Por favor revisa tu bandeja de entrada para verificar tu cuenta." 
     });
+
   } catch (error) {
+    // Captura fallos de base de datos o duplicados de Prisma (P2002)
     if (error.code === 'P2002') {
       return res.status(400).json({ error: "Este correo ya se encuentra registrado." });
     }
     
-    console.log("ERROR EXACTO:", error);
-    res.status(500).json({ error: "Error interno del servidor. Intenta más tarde." });
+    console.error("ERROR CRÍTICO GLOBAL EN REGISTRO:", error);
+    return res.status(500).json({ error: "Error interno del servidor. Intenta más tarde." });
   }
 };
 
