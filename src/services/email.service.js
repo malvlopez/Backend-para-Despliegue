@@ -6,13 +6,15 @@ dotenv.config();
 // CONFIGURACIÓN RESTRUCTURADA PARA ENTORNOS EN LA NUBE (RENDER)
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
+  port: 465,                 
+  secure: true,             
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
   },
-  family: 4, 
+  family: 4,               
+  connectionTimeout: 10000,  
+  greetingTimeout: 10000,    
   tls: {
     rejectUnauthorized: false
   }
