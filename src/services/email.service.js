@@ -1,73 +1,83 @@
-import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// CONFIGURACIÓN RESTRUCTURADA PARA ENTORNOS EN LA NUBE (RENDER)
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,                 
-  secure: true,             
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  },
-  family: 4,               
-  connectionTimeout: 10000,  
-  greetingTimeout: 10000,    
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+// FUNCIÓN INTERNA PARA CONECTAR CON BREVO
+const sendBrevoEmail = async (toEmail, toName, subject, htmlContent) => {
+  try {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': process.env.BREVO_API_KEY, 
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { 
+          name: "Plataforma TSDS ESFOT", 
+          email: process.env.BREVO_SENDER_EMAIL 
+        },
+        to: [{ email: toEmail, name: toName }],
+        subject: subject,
+        htmlContent: htmlContent
+      })
+    });
 
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error en la petición a Brevo');
+    }
+
+    const data = await response.json();
+    return { success: true, messageId: data.messageId };
+  } catch (error) {
+    console.error(`Error enviando correo [${subject}]:`, error);
+    throw error;
+  }
+};
+
+// 1. MANTIENE TUS PARÁMETROS: userEmail, firstName, lastName, token
 export const sendVerificationEmail = async (userEmail, firstName, lastName, token) => {
   const confirmUrl = `${process.env.FRONTEND_URL}/confirm/${token}`;
   const fullName = `${firstName} ${lastName}`;
 
-  const mailOptions = {
-    from: `"Plataforma TSDS" <${process.env.SMTP_USER}>`,
-    to: userEmail,
-    subject: 'Verifica tu cuenta institucional ESFOT',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px;">
-        <h2 style="color: #1e3a8a; text-align: center;">¡Bienvenido a TSDS!</h2>
-        <p style="color: #374151; font-size: 16px;">Hola <strong>${fullName}</strong>,</p>
-        <p style="color: #374151; font-size: 16px;">Gracias por registrarte. Para poder acceder a tu entorno autónomo de aprendizaje, necesitamos verificar tu correo institucional.</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${confirmUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Verificar mi cuenta</a>
-        </div>
-        <p style="color: #6b7280; font-size: 14px; text-align: center;">Si el botón no funciona, copia y pega el siguiente enlace:</p>
-        <p style="color: #3b82f6; font-size: 12px; word-break: break-all; text-align: center;">${confirmUrl}</p>
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px;">
+      <h2 style="color: #1e3a8a; text-align: center;">¡Bienvenido a TSDS!</h2>
+      <p style="color: #374151; font-size: 16px;">Hola <strong>${fullName}</strong>,</p>
+      <p style="color: #374151; font-size: 16px;">Gracias por registrarte. Para poder acceder a tu entorno autónomo de aprendizaje, necesitamos verificar tu correo institucional.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${confirmUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Verificar mi cuenta</a>
       </div>
-    `
-  };
+      <p style="color: #6b7280; font-size: 14px; text-align: center;">Si el botón no funciona, copia y pega el siguiente enlace:</p>
+      <p style="color: #3b82f6; font-size: 12px; word-break: break-all; text-align: center;">${confirmUrl}</p>
+    </div>
+  `;
 
-  await transporter.sendMail(mailOptions);
+  // Ejecuta la API pasando las variables con tus nombres originales
+  await sendBrevoEmail(userEmail, fullName, 'Verifica tu cuenta institucional ESFOT', html);
 };
 
+// 2. MANTIENE TUS PARÁMETROS: email, firstName, token
 export const sendPasswordResetEmail = async (email, firstName, token) => {
   const resetLink = `${process.env.FRONTEND_URL}/reset-password/${token}`;
 
-  const mailOptions = {
-    from: process.env.SMTP_USER,
-    to: email,
-    subject: 'Recuperación de Contraseña - TSDS ESFOT',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px;">
-        <h2 style="color: #1e3a8a; text-align: center;">Recuperación de Acceso</h2>
-        <p>Hola ${firstName},</p>
-        <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en la plataforma TSDS.</p>
-        <p>Si fuiste tú, haz clic en el siguiente botón para crear una nueva contraseña. Este enlace expirará en 1 hora.</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${resetLink}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Restablecer mi contraseña</a>
-        </div>
-        <p style="color: #6b7280; font-size: 14px;">Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
-        <p style="color: #2563eb; font-size: 14px; word-break: break-all;">${resetLink}</p>
-        <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
-        <p style="color: #9ca3af; font-size: 12px; text-align: center;">Si no solicitaste este cambio, ignora este correo. Tu cuenta está segura.</p>
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px;">
+      <h2 style="color: #1e3a8a; text-align: center;">Recuperación de Acceso</h2>
+      <p>Hola ${firstName},</p>
+      <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en la plataforma TSDS.</p>
+      <p>Si fuiste tú, haz clic en el siguiente botón para crear una nueva contraseña. Este enlace expirará en 1 hora.</p>
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${resetLink}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Restablecer mi contraseña</a>
       </div>
-    `
-  };
+      <p style="color: #6b7280; font-size: 14px;">Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
+      <p style="color: #2563eb; font-size: 14px; word-break: break-all;">${resetLink}</p>
+      <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+      <p style="color: #9ca3af; font-size: 12px; text-align: center;">Si no solicitaste este cambio, ignora este correo. Tu cuenta está segura.</p>
+    </div>
+  `;
 
-  await transporter.sendMail(mailOptions);
+  // Ejecuta la API pasando las variables con tus nombres originales
+  await sendBrevoEmail(email, firstName, 'Recuperación de Contraseña - TSDS ESFOT', html);
 };
