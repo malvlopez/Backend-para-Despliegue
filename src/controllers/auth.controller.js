@@ -3,17 +3,17 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { registerUser } from '../services/auth.service.js';
-import { sendVerificationEmail } from '../services/email.service.js';
-import { sendPasswordResetEmail } from '../services/email.service.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service.js';
 
 const prisma = new PrismaClient();
 
+// 1. REGISTRO DE USUARIO
 export const register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const { name, email, password } = req.body;
 
-    // 1. Validaciones previas
-    if (!firstName || !lastName || !email || !password) {
+    // Validaciones previas básicas
+    if (!name || !email || !password) {
       return res.status(400).json({ error: "Todos los campos son obligatorios" });
     }
 
@@ -22,143 +22,148 @@ export const register = async (req, res) => {
     }
 
     if (password.length < 8) {
-      return res.status(400).json({ error: "La contraseña es muy débil" });
+      return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
     }
 
-    // 2. Crear usuario en la base de datos (Supabase a través de Prisma)
+    // Crear usuario mediante el servicio (Asegúrate de que tu auth.service use 'name' y no firstName/lastName)
     const user = await registerUser(req.body);
     
-    // 3. INTENTO DE ENVÍO DE CORREO AISLADO (Evita el Error 502 si falla Nodemailer)
+    // Intento aislado de envío de correo para evitar romper el flujo si Nodemailer falla
     try {
-      await sendVerificationEmail(user.email, user.firstName, user.lastName, user.verificationToken);
+      await sendVerificationEmail(user.email, user.name, user.verificationToken);
       console.log(`Correo de verificación enviado con éxito a: ${user.email}`);
     } catch (emailError) {
-      // Si falla el correo, lo registramos en logs pero NO rompemos la respuesta del servidor
       console.error("ERROR EN NODEMAILER AL ENVIAR VERIFICACIÓN:", emailError.message);
-      
       return res.status(201).json({ 
-        message: "Usuario creado exitosamente en la plataforma, pero hubo un problema técnico temporal al enviar el correo de verificación. Por favor, solicita un reenvío o contacta al administrador.",
+        message: "Usuario creado exitosamente en la plataforma, pero hubo un problema al enviar el correo de verificación. Contacta al administrador.",
         emailError: true
       });
     }
 
-    // 4. Respuesta exitosa estándar si todo salió perfecto
     return res.status(201).json({ 
       message: "Usuario creado exitosamente. Por favor revisa tu bandeja de entrada para verificar tu cuenta." 
     });
 
   } catch (error) {
-    // Captura fallos de base de datos o duplicados de Prisma (P2002)
     if (error.code === 'P2002') {
       return res.status(400).json({ error: "Este correo ya se encuentra registrado." });
     }
-    
     console.error("ERROR CRÍTICO GLOBAL EN REGISTRO:", error);
     return res.status(500).json({ error: "Error interno del servidor. Intenta más tarde." });
   }
 };
 
+// 2. VERIFICACIÓN DE CUENTA
 export const verifyAccount = async (req, res) => {
-  const { token } = req.params;
-  
-  const user = await prisma.user.findFirst({ where: { verificationToken: token } });
-  if (!user) return res.status(400).json({ message: "Token inválido" });
+  try {
+    const { token } = req.params;
+    
+    const user = await prisma.user.findFirst({ where: { verificationToken: token } });
+    if (!user) return res.status(400).json({ message: "Token inválido" });
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { isVerified: true, verificationToken: null }
-  });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { isVerified: true, verificationToken: null }
+    });
 
-  res.json({ message: "Cuenta verificada con éxito" });
+    res.json({ message: "Cuenta verificada con éxito" });
+  } catch (error) {
+    res.status(500).json({ error: "Error al verificar la cuenta." });
+  }
 };
 
+// 3. INICIO DE SESIÓN (LOGIN)
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Validar que vengan los campos obligatorios
     if (!email || !password) {
       return res.status(400).json({ message: "El correo y la contraseña son obligatorios" });
     }
 
-    // 2. Buscar al usuario por su correo institucional
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
+    // Traemos al usuario incluyendo la relación de roles intermedia y el Rol final
+    const user = await prisma.user.findUnique({ 
+      where: { email },
+      include: {
+        roles: {
+          include: {
+            role: true
+          }
+        }
+      }
+    });
 
-    // 3. Verificar si ya activó la cuenta desde el correo
-    if (!user.isVerified) {
-      return res.status(401).json({ message: "Debes verificar tu cuenta institucional primero" });
-    }
+    if (!user) return res.status(404).json({ message: "Usuario no encontrado" });
+    if (!user.isVerified) return res.status(401).json({ message: "Debes verificar tu cuenta institucional primero" });
 
-    // 4. Comparar contraseñas usando bcrypt
     const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
-      return res.status(401).json({ message: "Contraseña incorrecta" });
-    }
+    if (!validPassword) return res.status(401).json({ message: "Contraseña incorrecta" });
 
-    // 5. Generar el Token JWT (Le añadimos expiración por seguridad, ej. 24 horas)
+    // Mapeamos las relaciones n a n a un array limpio de strings: ["STUDENT", "ADMIN"]
+    const userRoles = user.roles.map(ur => ur.role.name);
+
+    // Guardamos el array de roles en el JWT
     const token = jwt.sign(
-      { id: user.id, role: user.role }, 
+      { id: user.id, roles: userRoles }, 
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    // 6. Respuesta limpia, con mensaje de éxito y datos corregidos
     res.status(200).json({
       message: "Inicio de sesión exitoso. ¡Bienvenido!",
       token,
       user: {
         id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        name: user.name,
         email: user.email,
-        role: user.role
+        roles: userRoles
       }
     });
-
   } catch (error) {
-    console.log("ERROR EN LOGIN:", error);
+    console.error("ERROR EN LOGIN:", error);
     res.status(500).json({ message: "Error interno del servidor al intentar iniciar sesión." });
   }
 };
 
+// 4. SOLICITAR RECUPERACIÓN DE CONTRASEÑA
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await prisma.user.findUnique({
-      where: { email }
-    });
+    const user = await prisma.user.findUnique({ where: { email } });
 
+    // Mitigación de enumeración de usuarios: devolvemos 200 aunque no exista
     if (!user) {
       return res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpires = new Date(Date.now() + 3600000);
-
+    
+    // Si necesitas expirar el token, recuerda agregar el campo `resetTokenExpires DateTime?` a tu esquema Prisma.
+    // Por ahora lo guardamos usando Prisma de manera segura (No SQL crudo)
     await prisma.user.update({
       where: { id: user.id },
-      data: {
-        resetToken,
-        resetTokenExpires
-      }
+      data: { resetToken }
     });
 
-    await sendPasswordResetEmail(user.email, user.firstName, resetToken);
+    await sendPasswordResetEmail(user.email, user.name, resetToken);
 
     res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
   } catch (error) {
+    console.error("ERROR EN FORGOT PASSWORD:", error);
     res.status(500).json({ error: "Error interno del servidor." });
   }
 };
 
+// 5. RESTABLECER CONTRASEÑA
 export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ message: "La nueva contraseña debe tener al menos 8 caracteres" });
+    }
 
     const user = await prisma.user.findFirst({ where: { resetToken: token } });
     if (!user) return res.status(400).json({ message: "El token es inválido o ha expirado" });
@@ -169,7 +174,7 @@ export const resetPassword = async (req, res) => {
       where: { id: user.id },
       data: { 
         password: hashedPassword,
-        resetToken: null
+        resetToken: null // Se limpia para evitar reusos
       }
     });
 
@@ -179,19 +184,25 @@ export const resetPassword = async (req, res) => {
   }
 };
 
+// 6. OBTENER PERFIL DE USUARIO LOGUEADO
 export const getProfile = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: {
         id: true,
-        firstName: true,
-        lastName: true,
+        name: true,
         email: true,
-        role: true,
-        learningStyle: true,
-        currentSemester: true,
-        createdAt: true
+        createdAt: true,
+        roles: {
+          select: {
+            role: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -199,8 +210,15 @@ export const getProfile = async (req, res) => {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    res.json(user);
+    // Aplanamos la respuesta de los roles para el frontend
+    const flatUser = {
+      ...user,
+      roles: user.roles.map(ur => ur.role.name)
+    };
+
+    res.json(flatUser);
   } catch (error) {
+    console.error("ERROR EN GET PROFILE:", error);
     res.status(500).json({ error: "Error al obtener el perfil" });
   }
 };

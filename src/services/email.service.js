@@ -37,14 +37,13 @@ const sendBrevoEmail = async (toEmail, toName, subject, htmlContent) => {
 };
 
 // 1. MANTIENE TUS PARÁMETROS: userEmail, firstName, lastName, token
-export const sendVerificationEmail = async (userEmail, firstName, lastName, token) => {
+export const sendVerificationEmail = async (email, name, token) => {
   const confirmUrl = `${process.env.FRONTEND_URL}/confirm/${token}`;
-  const fullName = `${firstName} ${lastName}`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px;">
       <h2 style="color: #1e3a8a; text-align: center;">¡Bienvenido a TSDS!</h2>
-      <p style="color: #374151; font-size: 16px;">Hola <strong>${fullName}</strong>,</p>
+      <p style="color: #374151; font-size: 16px;">Hola <strong>${name}</strong>,</p>
       <p style="color: #374151; font-size: 16px;">Gracias por registrarte. Para poder acceder a tu entorno autónomo de aprendizaje, necesitamos verificar tu correo institucional.</p>
       <div style="text-align: center; margin: 30px 0;">
         <a href="${confirmUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Verificar mi cuenta</a>
@@ -54,18 +53,17 @@ export const sendVerificationEmail = async (userEmail, firstName, lastName, toke
     </div>
   `;
 
-  // Ejecuta la API pasando las variables con tus nombres originales
-  await sendBrevoEmail(userEmail, fullName, 'Verifica tu cuenta institucional ESFOT', html);
+  await sendBrevoEmail(email, name, 'Verifica tu cuenta institucional ESFOT', html);
 };
 
 // 2. MANTIENE TUS PARÁMETROS: email, firstName, token
-export const sendPasswordResetEmail = async (email, firstName, token) => {
+export const sendPasswordResetEmail = async (email, name, token) => {
   const resetLink = `${process.env.FRONTEND_URL}/reset-password/${token}`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px;">
       <h2 style="color: #1e3a8a; text-align: center;">Recuperación de Acceso</h2>
-      <p>Hola ${firstName},</p>
+      <p>Hola ${name},</p>
       <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en la plataforma TSDS.</p>
       <p>Si fuiste tú, haz clic en el siguiente botón para crear una nueva contraseña. Este enlace expirará en 1 hora.</p>
       <div style="text-align: center; margin: 30px 0;">
@@ -78,6 +76,5 @@ export const sendPasswordResetEmail = async (email, firstName, token) => {
     </div>
   `;
 
-  // Ejecuta la API pasando las variables con tus nombres originales
-  await sendBrevoEmail(email, firstName, 'Recuperación de Contraseña - TSDS ESFOT', html);
+  await sendBrevoEmail(email, name, 'Recuperación de Contraseña - TSDS ESFOT', html);
 };

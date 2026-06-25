@@ -13,6 +13,23 @@ export const verifyToken = (req, res, next) => {
     req.user = verified;
     next();
   } catch (error) {
-    res.status(400).json({ error: "Token inválido o expirado." });
+    res.status(401).json({ error: "Token inválido o expirado." });
   }
+};
+
+// Middleware para validar roles específicos
+export const checkRoles = (allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user || !req.user.roles) {
+      return res.status(403).json({ error: "No tienes permisos para realizar esta acción." });
+    }
+
+    const hasRole = req.user.roles.some(role => allowedRoles.includes(role));
+
+    if (!hasRole) {
+      return res.status(403).json({ error: "Acceso denegado. Rol insuficiente." });
+    }
+
+    next();
+  };
 };
