@@ -1,31 +1,33 @@
-import { PrismaClient } from '../generated/prisma/index.js';
-import bcrypt from 'bcrypt';
-import crypto from 'crypto';
-
-const prisma = new PrismaClient();
+// Dentro de tu archivo: ../services/auth.service.js
 
 export const registerUser = async (userData) => {
   const { name, email, password } = userData;
-
   const hashedPassword = await bcrypt.hash(password, 10);
-  const vToken = crypto.randomBytes(32).toString('hex');
+  const verificationToken = crypto.randomBytes(32).toString('hex');
 
-  const user = await prisma.user.create({
+  const newUser = await prisma.user.create({
     data: {
       name,
       email,
       password: hashedPassword,
-      verificationToken: vToken,
-      // Asignamos el rol por defecto
+      verificationToken,
+      isVerified: false,
       roles: {
         create: {
           role: {
-            connect: { name: "STUDENT" }
+            // Cambiamos 'connect' por 'connectOrCreate' para blindar el registro
+            connectOrCreate: {
+              where: { name: 'STUDENT' },
+              create: { 
+                name: 'STUDENT',
+                description: 'Rol básico para estudiantes de la institución' 
+              }
+            }
           }
         }
       }
     }
   });
 
-  return user;
+  return newUser;
 };
