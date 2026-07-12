@@ -194,6 +194,11 @@ export const getProfile = async (req, res) => {
         name: true,
         email: true,
         createdAt: true,
+        streak: true,
+        level: true,
+        xp: true,
+        initials: true,
+        learningProfile: true,
         roles: {
           select: {
             role: {
@@ -210,7 +215,6 @@ export const getProfile = async (req, res) => {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
-    // Aplanamos la respuesta de los roles para el frontend
     const flatUser = {
       ...user,
       roles: user.roles.map(ur => ur.role.name)
@@ -218,7 +222,7 @@ export const getProfile = async (req, res) => {
 
     res.json(flatUser);
   } catch (error) {
-    console.error("ERROR EN GET PROFILE:", error);
+    console.error(error);
     res.status(500).json({ error: "Error al obtener el perfil" });
   }
 };

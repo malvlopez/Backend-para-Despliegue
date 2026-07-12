@@ -1,10 +1,8 @@
-// src/server.js
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import authRoutes from './routes/auth.routes.js';
-
-dotenv.config();
+import { initializeFirstAdmin } from './services/init.service.js';
 
 const app = express();
 
@@ -18,6 +16,12 @@ app.get("/", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`Servidor en puerto ${PORT}`);
-});
+const startServer = async () => {
+  await initializeFirstAdmin();
+  
+  app.listen(PORT, () => {
+    console.log(`Servidor en puerto ${PORT}`);
+  });
+};
+
+startServer();
