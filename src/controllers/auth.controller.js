@@ -12,7 +12,6 @@ export const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Validaciones previas básicas
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Todos los campos son obligatorios" });
     }
@@ -25,12 +24,10 @@ export const register = async (req, res) => {
       return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
     }
 
-    // Crear usuario mediante el servicio (Asegúrate de que tu auth.service use 'name' y no firstName/lastName)
     const user = await registerUser(req.body);
     
-    // Intento aislado de envío de correo para evitar romper el flujo si Nodemailer falla
     try {
-      await sendVerificationEmail(user.email, user.name, user.verificationToken);
+      await sendVerificationEmail(user.email, user.verificationToken);
       console.log(`Correo de verificación enviado con éxito a: ${user.email}`);
     } catch (emailError) {
       console.error("ERROR EN NODEMAILER AL ENVIAR VERIFICACIÓN:", emailError.message);

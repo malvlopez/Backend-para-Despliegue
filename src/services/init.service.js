@@ -17,26 +17,30 @@ export const initializeFirstAdmin = async () => {
       create: { name: 'STUDENT', description: 'Estudiante EPN' }
     });
 
-    const adminCount = await prisma.userRole.count({
-      where: { roleId: adminRole.id }
+    const adminEmail = process.env.FIRST_ADMIN_EMAIL || 'admin@epn.edu.ec';
+    const adminPassword = process.env.FIRST_ADMIN_PASSWORD || 'SuperAdmin2026*';
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+    await prisma.user.upsert({
+      where: { email: adminEmail },
+      update: {
+        isActive: true,
+        isVerified: true,
+        password: hashedPassword
+      },
+      create: {
+        name: 'Super Administrador',
+        email: adminEmail,
+        password: hashedPassword,
+        isVerified: true,
+        isActive: true,
+        roles: {
+          create: { roleId: adminRole.id }
+        }
+      }
     });
 
-    if (adminCount === 0) {
-      const hashedPassword = await bcrypt.hash(process.env.FIRST_ADMIN_PASSWORD || 'SuperAdmin2026*', 10);
-      
-      await prisma.user.create({
-        data: {
-          name: 'Super Administrador',
-          email: process.env.FIRST_ADMIN_EMAIL || 'admin@epn.edu.ec',
-          password: hashedPassword,
-          isVerified: true,
-          roles: {
-            create: { roleId: adminRole.id }
-          }
-        }
-      });
-      console.log("Admin inicial y roles base creados con éxito.");
-    }
+    console.log("Roles base y Super Admin garantizados en el sistema.");
   } catch (error) {
     console.error(error);
   }
