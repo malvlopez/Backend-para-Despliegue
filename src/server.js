@@ -7,6 +7,8 @@ import resourceRoutes from './routes/resource.routes.js';
 import routeRoutes from './routes/route.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import chatRoutes from './routes/chat.routes.js';
+import { executeCode } from './controllers/execute.controller.js';
+import executeRoutes from './routes/execute.routes.js';
 import { initializeFirstAdmin } from './services/init.service.js';
 
 const app = express();
@@ -23,6 +25,7 @@ app.use('/api/routes', routeRoutes);
 app.use('/api/upload', uploadRoutes);
 
 app.use('/api/chat', chatRoutes);
+app.use('/api/execute', executeRoutes);
 
 app.get("/", (req, res) => {
   res.send("API funcionando");
