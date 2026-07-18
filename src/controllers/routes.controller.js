@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 export const createRoute = async (req, res) => {
   try {
-    const { title, description, category, estimatedTime, difficulty, evaluationRules, resourceIds } = req.body;
+    const { title, description, category, estimatedTime, difficulty, evaluationRules, modules } = req.body;
     const authorId = req.user.id;
 
     if (!title) {
@@ -20,17 +20,28 @@ export const createRoute = async (req, res) => {
         difficulty,
         evaluationRules,
         authorId,
-        resources: {
-          create: resourceIds?.map((id, index) => ({
-            resourceId: parseInt(id),
-            position: index + 1
+        modules: {
+          create: modules?.map((mod, index) => ({
+            title: mod.title,
+            description: mod.description,
+            position: index + 1,
+            resources: {
+              create: mod.resourceIds?.map((resId, resIndex) => ({
+                resourceId: parseInt(resId),
+                position: resIndex + 1
+              })) || []
+            }
           })) || []
         }
       },
       include: {
-        resources: {
+        modules: {
           include: {
-            resource: true
+            resources: {
+              include: {
+                resource: true
+              }
+            }
           }
         }
       }
@@ -50,10 +61,15 @@ export const getRoutes = async (req, res) => {
         author: {
           select: { name: true, email: true }
         },
-        resources: {
+        modules: {
           orderBy: { position: 'asc' },
           include: {
-            resource: true
+            resources: {
+              orderBy: { position: 'asc' },
+              include: {
+                resource: true
+              }
+            }
           }
         }
       },
@@ -87,7 +103,7 @@ export const deleteRoute = async (req, res) => {
 export const updateRoute = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, category, estimatedTime, difficulty, evaluationRules, resourceIds } = req.body;
+    const { title, description, category, estimatedTime, difficulty, evaluationRules, modules } = req.body;
 
     const existingRoute = await prisma.learningRoute.findUnique({ where: { id: parseInt(id) } });
     if (!existingRoute) {
@@ -103,17 +119,28 @@ export const updateRoute = async (req, res) => {
         estimatedTime: estimatedTime ? parseInt(estimatedTime) : null,
         difficulty,
         evaluationRules,
-        resources: {
+        modules: {
           deleteMany: {},
-          create: resourceIds?.map((id, index) => ({
-            resourceId: parseInt(id),
-            position: index + 1
+          create: modules?.map((mod, index) => ({
+            title: mod.title,
+            description: mod.description,
+            position: index + 1,
+            resources: {
+              create: mod.resourceIds?.map((resId, resIndex) => ({
+                resourceId: parseInt(resId),
+                position: resIndex + 1
+              })) || []
+            }
           })) || []
         }
       },
       include: {
-        resources: {
-          include: { resource: true }
+        modules: {
+          include: {
+            resources: {
+              include: { resource: true }
+            }
+          }
         }
       }
     });

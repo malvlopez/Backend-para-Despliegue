@@ -7,7 +7,6 @@ import resourceRoutes from './routes/resource.routes.js';
 import routeRoutes from './routes/route.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import chatRoutes from './routes/chat.routes.js';
-import { executeCode } from './controllers/execute.controller.js';
 import executeRoutes from './routes/execute.routes.js';
 import { initializeFirstAdmin } from './services/init.service.js';
 

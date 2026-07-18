@@ -10,47 +10,47 @@ datasource db {
 }
 
 model User {
-  id                  Int           @id @default(autoincrement())
-  name                String
-  email               String        @unique
-  password            String
-  initials            String?
-  streak              Int           @default(0)
-  level               Int           @default(1)
-  xp                  Int           @default(0)
-  learningProfile     String?       @db.Text
-  isVerified          Boolean       @default(false)
-  isActive            Boolean       @default(true)
-  verificationToken   String?
-  resetToken          String?
-  createdAt           DateTime      @default(now())
-  resetTokenExpires   DateTime?
-  updatedAt           DateTime      @updatedAt 
+  id                Int             @id @default(autoincrement())
+  name              String
+  email             String          @unique
+  password          String
+  initials          String?
+  streak            Int             @default(0)
+  level             Int             @default(1)
+  xp                Int             @default(0)
+  learningProfile   String?         @db.Text
+  isVerified        Boolean         @default(false)
+  isActive          Boolean         @default(true)
+  verificationToken String?
+  resetToken        String?
+  createdAt         DateTime        @default(now())
+  resetTokenExpires DateTime?
+  updatedAt         DateTime        @updatedAt 
 
-  roles               UserRole[]
-  chatSessions        ChatSession[]
+  roles             UserRole[]
+  chatSessions      ChatSession[]
   
-  createdResources    Resource[]      @relation("UserResources")
-  createdRoutes       LearningRoute[] @relation("UserRoutes")
+  createdResources  Resource[]      @relation("UserResources")
+  createdRoutes     LearningRoute[] @relation("UserRoutes")
 }
 
 model Role {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique 
+  id          Int              @id @default(autoincrement())
+  name        String           @unique 
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   users       UserRole[]
   permissions RolePermission[]
 }
 
 model Permission {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique 
+  id          Int              @id @default(autoincrement())
+  name        String           @unique 
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   roles       RolePermission[]
 }
@@ -69,7 +69,7 @@ model UserRole {
 model RolePermission {
   roleId       Int
   permissionId Int
-  assignedAt   DateTime @default(now())
+  assignedAt   DateTime   @default(now())
 
   role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
@@ -78,27 +78,29 @@ model RolePermission {
 }
 
 model ChatSession {
-  id          Int       @id @default(autoincrement())
+  id          Int           @id @default(autoincrement())
   userId      Int
+  moduleId    Int?
   title       String?
   topic       String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module      Module?       @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   messages    ChatMessage[]
 }
 
 model ChatMessage {
-  id            Int         @id @default(autoincrement())
-  sessionId     Int
-  sender        String      
-  content       String      @db.Text
-  fileUrl       String?     
-  isChallenge   Boolean     @default(false)
-  createdAt     DateTime    @default(now())
+  id          Int         @id @default(autoincrement())
+  sessionId   Int
+  sender      String      
+  content     String      @db.Text
+  fileUrl     String?     
+  isChallenge Boolean     @default(false)
+  createdAt   DateTime    @default(now())
 
-  session       ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session     ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 enum ResourceType {
@@ -115,16 +117,16 @@ enum RouteDifficulty {
 }
 
 model Resource {
-  id          Int             @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   title       String
   description String?
   type        ResourceType
   url         String
   authorId    Int
-  author      User            @relation("UserResources", fields: [authorId], references: [id])
-  routes      RouteResource[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  author      User             @relation("UserResources", fields: [authorId], references: [id])
+  modules     ModuleResource[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 model LearningRoute {
@@ -137,18 +139,34 @@ model LearningRoute {
   evaluationRules String?         @db.Text
   authorId        Int
   author          User            @relation("UserRoutes", fields: [authorId], references: [id])
-  resources       RouteResource[]
+  modules         Module[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 }
 
-model RouteResource {
-  id          Int           @id @default(autoincrement())
+model Module {
+  id          Int              @id @default(autoincrement())
+  title       String
+  description String?          @db.Text
+  position    Int              
   routeId     Int
-  resourceId  Int
-  position    Int
-  route       LearningRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
-  resource    Resource      @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  
+  route       LearningRoute    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  resources   ModuleResource[]
+  chatSessions ChatSession[]
 
-  @@unique([routeId, resourceId])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model ModuleResource {
+  id          Int      @id @default(autoincrement())
+  moduleId    Int
+  resourceId  Int
+  position    Int      
+  
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  resource    Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([moduleId, resourceId])
 }

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createRoute, getRoutes, deleteRoute, updateRoute } from '../controllers/route.controller.js';
+import { createRoute, getRoutes, deleteRoute, updateRoute } from '../controllers/routes.controller.js';
 import { verifyToken, checkRoles } from '../middlewares/auth.middleware.js';
 
 const router = Router();

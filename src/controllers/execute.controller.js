@@ -1,6 +1,6 @@
 export const executeCode = async (req, res) => {
   try {
-    const { language, code } = req.body;
+    const { language, code, stdin } = req.body;
 
     if (!language || !code) {
       return res.status(400).json({ error: "Lenguaje y código son obligatorios." });
@@ -24,6 +24,7 @@ export const executeCode = async (req, res) => {
         clientId: process.env.JDOODLE_CLIENT_ID,
         clientSecret: process.env.JDOODLE_CLIENT_SECRET,
         script: code,
+        stdin: stdin || "",
         language: target.lang,
         versionIndex: target.version
       })
