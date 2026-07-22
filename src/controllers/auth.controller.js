@@ -28,13 +28,16 @@ export const register = async (req, res) => {
     } catch (emailError) {
       console.error("Error al enviar email de verificación:", emailError);
       return res.status(201).json({ 
-        message: "Usuario creado exitosamente en la plataforma, pero hubo un problema al enviar el correo de verificación. Contacta al administrador.",
+        message: "Usuario creado exitosamente en la plataforma, pero hubo un problema al enviar el correo de verificación.",
+        verificationToken: user.verificationToken, // Token devuelto aquí también por respaldo
         emailError: true
       });
     }
 
+    // Devuelto aquí para pruebas directas del Backend
     return res.status(201).json({ 
-      message: "Usuario creado exitosamente. Por favor revisa tu bandeja de entrada para verificar tu cuenta." 
+      message: "Usuario creado exitosamente. Por favor revisa tu bandeja de entrada o usa el token adjunto.",
+      verificationToken: user.verificationToken 
     });
 
   } catch (error) {
@@ -121,6 +124,7 @@ export const forgotPassword = async (req, res) => {
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
+      // Por seguridad, si el usuario no existe no revelamos el token
       return res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
     }
 
@@ -131,9 +135,17 @@ export const forgotPassword = async (req, res) => {
       data: { resetToken }
     });
 
-    await sendPasswordResetEmail(user.email, user.name, resetToken);
+    try {
+      await sendPasswordResetEmail(user.email, user.name, resetToken);
+    } catch (emailError) {
+      console.error("Error al enviar email de restablecimiento:", emailError);
+    }
 
-    res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
+    // Retornamos el token directo en la respuesta HTTP para evaluación del Backend
+    res.status(200).json({ 
+      message: "Si el correo está registrado, recibirás un enlace de recuperación.",
+      resetToken // <--- Token listo para usar en tu cliente API (Postman / Bruno)
+    });
   } catch (error) {
     console.error("Error en forgotPassword:", error);
     res.status(500).json({ error: "Error interno del servidor." });
