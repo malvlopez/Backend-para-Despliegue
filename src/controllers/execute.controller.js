@@ -43,7 +43,6 @@ export const executeCode = async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
     return res.status(500).json({ error: "Error interno al intentar ejecutar el código." });
   }
 };

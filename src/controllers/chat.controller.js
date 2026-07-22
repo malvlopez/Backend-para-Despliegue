@@ -1,8 +1,7 @@
-import { PrismaClient } from '../generated/prisma/index.js';
+import prisma from '../prisma.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prepareResourceForGemini } from '../services/resourceParser.service.js';
 
-const prisma = new PrismaClient();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const updateStudentProfile = async (userId, studentMessage, aiMessage, currentProfile) => {
@@ -25,9 +24,7 @@ const updateStudentProfile = async (userId, studentMessage, aiMessage, currentPr
       where: { id: userId },
       data: { learningProfile: updatedProfile }
     });
-  } catch (error) {
-    console.error("ERROR ACTUALIZANDO PERFIL DE APRENDIZAJE:", error);
-  }
+  } catch (error) {}
 };
 
 export const processChatMessage = async (req, res) => {
@@ -150,7 +147,7 @@ export const processChatMessage = async (req, res) => {
 
 export const generateModuleAssessment = async (req, res) => {
   try {
-    const { moduleId } = req.body;
+    const { moduleId, type = 'completa' } = req.body;
 
     const moduleData = await prisma.module.findUnique({
       where: { id: parseInt(moduleId) },
@@ -180,37 +177,105 @@ export const generateModuleAssessment = async (req, res) => {
 
     contextText += combinedResources;
 
-    const systemPrompt = `
-      Eres un profesor exigente de la EPN. Tu objetivo es crear una prueba para evaluar a un estudiante basándote EXCLUSIVAMENTE en el siguiente material y aplicando las reglas del Prompt Maestro.
+    let promptInstructions = "";
+    let fewShotExample = "";
 
-      ${contextText}
+    const practicalRules = `
+        IMPORTANTE PARA EL RETO PRÁCTICO: El editor de la plataforma es un lienzo de evidencias multitarea.
+        Indica explícitamente al estudiante que seleccione la opción "Markdown / Texto Libre" en el editor para redactar su respuesta estructurando bloques de código (bash, json, html, sql, etc) o que suba imágenes/archivos al entorno.
+    `;
 
-      Instrucciones obligatorias:
-      1. Genera exactamente 5 preguntas (3 de opción múltiple y 2 de verdadero/falso).
-      2. Las preguntas de verdadero/falso deben contener afirmaciones que requieran análisis, no definiciones obvias.
-      3. Devuelve ÚNICAMENTE un objeto JSON con la estructura exacta que se muestra abajo, sin texto adicional, sin saludos, solo el JSON puro.
-
-      Estructura requerida:
+    if (type === 'teoria') {
+      promptInstructions = `
+        Instrucciones obligatorias:
+        1. Genera EXACTAMENTE 5 preguntas.
+        2. Todas las preguntas DEBEN ser de "multiple_choice" o "true_false".
+        3. Las preguntas de verdadero/falso deben requerir análisis técnico.
+      `;
+      fewShotExample = `
       {
         "questions": [
           {
             "id": 1,
             "type": "multiple_choice",
-            "question": "¿Pregunta de opción múltiple?",
+            "question": "¿Cuál es la principal ventaja de...?",
             "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
             "correctAnswer": "Opción A",
-            "explanation": "Explicación técnica de por qué es la respuesta correcta."
+            "explanation": "Explicación detallada."
           },
           {
             "id": 2,
             "type": "true_false",
-            "question": "¿Afirmación a evaluar?",
+            "question": "El protocolo TCP no garantiza la entrega de paquetes.",
             "options": ["Verdadero", "Falso"],
-            "correctAnswer": "Verdadero",
-            "explanation": "Explicación técnica del porqué de la veracidad."
+            "correctAnswer": "Falso",
+            "explanation": "TCP es orientado a conexión y garantiza la entrega mediante acuses de recibo."
           }
         ]
       }
+      `;
+    } else if (type === 'practica') {
+      promptInstructions = `
+        Instrucciones obligatorias:
+        1. Genera un "practicalChallenge" SENCILLO y DIRECTO.
+        2. DEBE tener UNA SOLA TAREA ("tasks" de longitud 1). No generes proyectos integradores.
+        ${practicalRules}
+      `;
+      fewShotExample = `
+      {
+        "practicalChallenge": {
+          "title": "Reto Práctico Rápido: Inicialización",
+          "context": "Contexto breve sobre la inicialización de la herramienta descrita en el módulo.",
+          "tasks": [
+            { "id": "t1", "description": "Escribe el comando exacto para iniciar el proyecto según la documentación." }
+          ]
+        }
+      }
+      `;
+    } else {
+      promptInstructions = `
+        Instrucciones obligatorias:
+        1. Genera ENTRE 10 Y 15 PREGUNTAS ("multiple_choice" o "true_false").
+        2. Genera un "practicalChallenge" que sea un RETO FINAL INTEGRADOR complejo.
+        3. El reto práctico debe estar desglosado en un arreglo de 3 a 5 tareas independientes.
+        ${practicalRules}
+      `;
+      fewShotExample = `
+      {
+        "questions": [
+          {
+            "id": 1,
+            "type": "multiple_choice",
+            "question": "¿Pregunta compleja 1?",
+            "options": ["Opción A", "Opción B", "Opción C", "Opción D"],
+            "correctAnswer": "Opción A",
+            "explanation": "Explicación técnica."
+          }
+        ],
+        "practicalChallenge": {
+          "title": "Reto Final Integrador",
+          "context": "Descripción general de la arquitectura o sistema a desarrollar...",
+          "tasks": [
+            { "id": "t1", "description": "Paso 1: Configuración base..." },
+            { "id": "t2", "description": "Paso 2: Desarrollo del script principal..." },
+            { "id": "t3", "description": "Paso 3: Análisis de la implementación..." }
+          ]
+        }
+      }
+      `;
+    }
+
+    const systemPrompt = `
+      Eres un profesor exigente de la EPN. Tu objetivo es crear material de evaluación para un estudiante basándote EXCLUSIVAMENTE en el siguiente material y aplicando las reglas del Prompt Maestro.
+
+      ${contextText}
+
+      ${promptInstructions}
+
+      Devuelve ÚNICAMENTE un objeto JSON. No incluyas markdown como \`\`\`json, ni texto adicional, ni saludos.
+      
+      EJEMPLO DE ESTRUCTURA Y FORMATO ESPERADO:
+      ${fewShotExample}
     `;
 
     const model = genAI.getGenerativeModel({
@@ -219,7 +284,7 @@ export const generateModuleAssessment = async (req, res) => {
     });
 
     const chat = model.startChat();
-    const result = await chat.sendMessage("Genera la evaluación ahora. Recuerda responder SOLAMENTE con el JSON, sin bloques de código markdown extra.");
+    const result = await chat.sendMessage("Genera la evaluación solicitada ahora. Recuerda responder SOLAMENTE con el JSON puro.");
     let aiResponseText = result.response.text();
 
     aiResponseText = aiResponseText.replace(/```json/gi, '').replace(/```/gi, '').trim();

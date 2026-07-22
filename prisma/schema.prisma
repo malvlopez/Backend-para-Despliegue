@@ -34,6 +34,7 @@ model User {
   createdResources  Resource[]      @relation("UserResources")
   createdRoutes     LearningRoute[] @relation("UserRoutes")
   enrollments       Enrollment[]
+  moduleProgress    ModuleProgress[]
 }
 
 model Role {
@@ -149,18 +150,19 @@ model LearningRoute {
 }
 
 model Module {
-  id           Int              @id @default(autoincrement())
-  title        String
-  description  String?          @db.Text
-  position     Int              
-  routeId      Int
+  id             Int              @id @default(autoincrement())
+  title          String
+  description    String?          @db.Text
+  position       Int              
+  routeId        Int
   
-  route        LearningRoute    @relation(fields: [routeId], references: [id], onDelete: Cascade)
-  resources    ModuleResource[]
-  chatSessions ChatSession[]
+  route          LearningRoute    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  resources      ModuleResource[]
+  chatSessions   ChatSession[]
+  moduleProgress ModuleProgress[]
 
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }
 
 model ModuleResource {
@@ -186,4 +188,18 @@ model Enrollment {
   route           LearningRoute @relation(fields: [learningRouteId], references: [id], onDelete: Cascade)
 
   @@unique([userId, learningRouteId])
+}
+
+model ModuleProgress {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  moduleId   Int
+  isPassed   Boolean  @default(false)
+  score      Int?
+  completedAt DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module     Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId])
 }

@@ -1,6 +1,6 @@
+import prisma from '../prisma.js';
 import { uploadFileToSupabase } from '../services/supabase.service.js';
 import { cloudinary } from '../services/cloudinary.service.js';
-import { PrismaClient } from '../generated/prisma/index.js';
 
 export const uploadFile = async (req, res) => {
   try {
@@ -15,7 +15,6 @@ export const uploadFile = async (req, res) => {
       url: fileUrl
     });
   } catch (error) {
-    console.error(error);
     return res.status(500).json({ error: "Error al subir el archivo." });
   }
 };
@@ -29,7 +28,6 @@ export const subirPortadaRuta = (req, res) => {
     { folder: 'esfot-rutas' },
     (error, result) => {
       if (error) {
-        console.error(error);
         return res.status(500).json({ error: 'Error al subir a Cloudinary' });
       }
 
@@ -78,7 +76,6 @@ export const uploadProfilePicture = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("DETALLE DEL ERROR CLOUDINARY:", error);
     return res.status(500).json({ error: 'Fallo interno al procesar la imagen con Cloudinary.' });
   }
 };

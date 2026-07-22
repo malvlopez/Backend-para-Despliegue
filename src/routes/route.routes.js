@@ -6,7 +6,8 @@ import {
   updateRoute, 
   generatePersonalizedRoute,
   getMyRoutes,
-  enrollRoute
+  enrollRoute,
+  completeModule
 } from '../controllers/routes.controller.js';
 import { verifyToken, checkRoles } from '../middlewares/auth.middleware.js';
 import { uploadCloudinary } from '../services/cloudinary.service.js';
@@ -15,6 +16,7 @@ const router = Router();
 
 router.get('/my-routes', verifyToken, getMyRoutes);
 router.post('/:id/enroll', verifyToken, checkRoles(['STUDENT']), enrollRoute);
+router.post('/complete-module', verifyToken, checkRoles(['STUDENT']), completeModule);
 
 router.post('/', verifyToken, checkRoles(['ADMIN']), createRoute);
 router.get('/', verifyToken, checkRoles(['ADMIN', 'STUDENT']), getRoutes);

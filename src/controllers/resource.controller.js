@@ -1,6 +1,4 @@
-import { PrismaClient } from '../generated/prisma/index.js';
-
-const prisma = new PrismaClient();
+import prisma from '../prisma.js';
 
 export const createResource = async (req, res) => {
   try {
@@ -23,7 +21,6 @@ export const createResource = async (req, res) => {
 
     return res.status(201).json({ message: "Recurso creado exitosamente", resource: newResource });
   } catch (error) {
-    console.error(error);
     return res.status(500).json({ error: "Error al crear el recurso." });
   }
 };
@@ -40,7 +37,6 @@ export const getResources = async (req, res) => {
     });
     return res.status(200).json(resources);
   } catch (error) {
-    console.error(error);
     return res.status(500).json({ error: "Error al obtener los recursos." });
   }
 };
@@ -62,7 +58,6 @@ export const updateResource = async (req, res) => {
 
     return res.status(200).json({ message: "Recurso actualizado", resource: updatedResource });
   } catch (error) {
-    console.error(error);
     return res.status(500).json({ error: "Error al actualizar el recurso." });
   }
 };
@@ -80,7 +75,6 @@ export const deleteResource = async (req, res) => {
 
     return res.status(200).json({ message: "Recurso eliminado correctamente." });
   } catch (error) {
-    console.error(error);
     return res.status(500).json({ error: "Error al eliminar el recurso." });
   }
 };
