@@ -195,6 +195,7 @@ export const getProfile = async (req, res) => {
         xp: true,
         initials: true,
         learningProfile: true,
+        profilePicture: true,
         roles: {
           select: {
             role: {

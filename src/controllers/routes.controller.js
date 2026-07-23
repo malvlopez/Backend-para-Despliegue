@@ -189,6 +189,8 @@ export const generatePersonalizedRoute = async (req, res) => {
       return res.status(400).json({ error: "El tema es obligatorio para generar la ruta." });
     }
 
+    const validTypes = ['LINK', 'VIDEO', 'PDF', 'IMAGE'];
+
     const systemPrompt = `
       Eres un experto diseñador curricular de software de la Escuela Politécnica Nacional.
       El estudiante solicita aprender sobre: "${topic}".
@@ -199,7 +201,7 @@ export const generatePersonalizedRoute = async (req, res) => {
       1. Diseña una Ruta de Aprendizaje completa y estructurada en módulos.
       2. DEBES incluir recursos educativos reales para CADA módulo. Inventa un título descriptivo y proporciona una URL que sepas que existe.
       3. El campo "evaluationRules" será el PROMPT MAESTRO para evaluar a este estudiante en el futuro.
-      4. Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura exacta:
+      4. Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura exacta. En el campo "type", SOLO puedes usar los valores: "LINK", "VIDEO", "PDF" o "IMAGE".
 
       {
         "title": "Un título atractivo",
@@ -213,7 +215,7 @@ export const generatePersonalizedRoute = async (req, res) => {
               {
                 "title": "Nombre del recurso",
                 "url": "https://enlace-real.com",
-                "type": "DOCUMENT"
+                "type": "LINK"
               }
             ]
           }
@@ -260,7 +262,7 @@ export const generatePersonalizedRoute = async (req, res) => {
                   create: {
                     title: res.title,
                     url: res.url,
-                    type: res.type || "DOCUMENT",
+                    type: validTypes.includes(res.type) ? res.type : "LINK",
                     authorId 
                   }
                 }

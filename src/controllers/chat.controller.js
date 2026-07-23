@@ -1,4 +1,5 @@
 import prisma from '../prisma.js';
+import Pusher from 'pusher';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { prepareResourceForGemini } from '../services/resourceParser.service.js';
 
@@ -301,5 +302,30 @@ export const generateModuleAssessment = async (req, res) => {
       return res.status(429).json({ error: "Límite de peticiones de IA alcanzado." });
     }
     return res.status(500).json({ error: "Error al generar la prueba dinámica." });
+  }
+};
+
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: process.env.PUSHER_CLUSTER,
+  useTLS: true
+});
+
+export const sendMessage = async (req, res) => {
+  try {
+    const { user, role, message, timestamp } = req.body;
+    
+    await pusher.trigger('esfot-support-channel', 'new-message', {
+      user,
+      role,
+      message,
+      timestamp
+    });
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ error: "Fallo al retransmitir el mensaje" });
   }
 };
