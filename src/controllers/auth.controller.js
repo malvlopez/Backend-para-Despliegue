@@ -225,15 +225,26 @@ export const getProfile = async (req, res) => {
 };
 
 export const checkCedula = async (req, res) => {
-  try {
-    const { cedula } = req.params;
-    
-    const apiResponse = await fetch(`https://api.ecuadorapi.com/v1/person?id=${cedula}`);
-    const data = await apiResponse.json();
+  const { cedula } = req.params;
+  const url = `https://api.ecuadorapi.com/v1/person?id=${cedula}`;
 
-    return res.status(200).json(data);
-  } catch (error) {
-    console.error("Error consultando EcuadorAPI:", error);
-    return res.status(500).json({ error: "No se pudo verificar la cédula en el Registro Civil" });
-  }
+  https.get(url, (apiRes) => {
+    let data = '';
+
+    apiRes.on('data', (chunk) => {
+      data += chunk;
+    });
+
+    apiRes.on('end', () => {
+      try {
+        const jsonData = JSON.parse(data);
+        return res.status(200).json(jsonData);
+      } catch (e) {
+        return res.status(500).json({ error: "Error al procesar la respuesta del Registro Civil" });
+      }
+    });
+
+  }).on('error', (err) => {
+    return res.status(500).json({ error: "No se pudo conectar con el servicio de verificación" });
+  });
 };
