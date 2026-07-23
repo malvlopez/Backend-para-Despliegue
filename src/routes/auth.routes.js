@@ -4,7 +4,6 @@ import { verifyToken, checkRoles } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
-
 router.post('/register', authCtrl.register);        
 router.get('/verify/:token', authCtrl.verifyAccount);
 router.post('/login', authCtrl.login);     
@@ -12,7 +11,7 @@ router.post('/forgot-password', authCtrl.forgotPassword);
 router.patch('/reset-password/:token', authCtrl.resetPassword); 
 
 router.get('/profile', verifyToken, authCtrl.getProfile);
-router.get('/verify-cedula/:cedula', checkCedula);
+router.get('/verify-cedula/:cedula', authCtrl.checkCedula);
 
 router.get('/admin/users', verifyToken, checkRoles(['ADMIN']), (req, res) => {
   res.json({ message: "Bienvenido, Administrador. Aquí están los usuarios." });
