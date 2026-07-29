@@ -255,38 +255,48 @@ export const checkCedula = async (req, res) => {
     });
   }
 
-  const options = {
-    hostname: 'api.ecuadorapi.com',
-    path: `/v1/person?id=${cedula}`,
-    method: 'GET',
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+  try {
+    const apiKey = process.env.ECUADOR_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({ error: "API Key no configurada en el servidor" });
     }
-  };
 
-  https.get(options, (apiRes) => {
-    let data = '';
-
-    apiRes.on('data', (chunk) => {
-      data += chunk;
-    });
-
-    apiRes.on('end', () => {
-      try {
-        const jsonData = JSON.parse(data);
-        return res.status(200).json(jsonData);
-      } catch (e) {
-        return res.status(200).json({
-          status: { http_code: 200 },
-          message: "Validación de identidad aprobada"
-        });
+    const response = await fetch(`https://api.ecuadorapi.com/api/v1/cedulas/${cedula}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
       }
     });
 
-  }).on('error', (err) => {
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const errorText = await response.text();
+      console.error("EcuadorAPI no devolvió JSON. Respuesta:", errorText);
+      return res.status(500).json({ error: "EcuadorAPI devolvió un formato incorrecto." });
+    }
+
+    const data = await response.json();
+
+    if (!response.ok || data.error) {
+      return res.status(200).json({
+        status: { http_code: 404 },
+        error: data.error || "No se pudo obtener la información"
+      });
+    }
+
+    const fullName = data.data?.full_name || data.full_name || data.name || data.nombre || "";
+
     return res.status(200).json({
-      status: { http_code: 200 },
-      message: "Validación de identidad aprobada por contingencia"
+      ...data,
+      name: fullName
     });
-  });
+    
+  } catch (error) {
+    console.error("Error crítico en checkCedula:", error);
+    return res.status(500).json({ 
+      error: "Error interno al comunicarse con el Registro Civil" 
+    });
+  }
 };
